@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stand - Profile Viewer</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/halfmoon@2.0.1/css/halfmoon.min.css" rel="stylesheet" integrity="sha256-SsJizWSIG9JT9Qxbiy8xnYJfjCAkhEQ0hihxRn7jt2M=" crossorigin="anonymous">
+  <style>
+    body {
+      background-color: #1a2332 !important;
+    }
+    .pl-4 {
+      padding-left: 2rem;
+    }
+    .content-wrapper {
+      margin-top: 2rem;
+      margin-left: 25px;
+    }
+    .card {
+      margin-bottom: 2rem;
+      background-color: #243447;
+      border: 1px solid #2d4157;
+    }
+    .card-body {
+      background-color: #243447;
+    }
+    .sidebar {
+      width: 250px;
+      position: fixed;
+      height: 100%;
+      background-color: #243447 !important;
+      color: white;
+      padding: 1rem;
+      box-shadow: 2px 0 5px rgba(0,0,0,0.3);
+    }
+    .sidebar * {
+      color: white !important;
+    }
+    .sidebar input {
+      background-color: #2d4157 !important;
+      border-color: #3a5166 !important;
+    }
+    .sidebar-title {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .content {
+      margin-left: 250px;
+      padding: 1rem;
+    }
+    .collapsible-section {
+      background-color: #2d4157;
+      border: 1px solid #3a5166;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+      overflow: hidden;
+    }
+    .collapsible-header {
+      padding: 1rem;
+      background-color: #2d4157;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background-color 0.2s;
+    }
+    .collapsible-header:hover {
+      background-color: #3a5166;
+    }
+    .collapsible-header h5 {
+      margin: 0;
+      color: #e0e6ed;
+      font-weight: 600;
+    }
+    .collapsible-icon {
+      transition: transform 0.2s;
+      color: #8fa3b8;
+    }
+    .collapsible-icon.expanded {
+      transform: rotate(90deg);
+    }
+    .collapsible-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+      background-color: #243447;
+    }
+    .collapsible-content.expanded {
+      max-height: 5000px;
+      transition: max-height 0.5s ease-in;
+    }
+    .collapsible-inner {
+      padding: 1rem;
+      color: #c5d1de;
+    }
+    .collapsible-inner ul {
+      list-style: none;
+      padding-left: 0;
+    }
+    .collapsible-inner ul li {
+      padding: 0.25rem 0;
+    }
+    .btn-secondary {
+      background-color: #2d4157 !important;
+      border-color: #3a5166 !important;
+      color: white !important;
+    }
+    .btn-secondary:hover {
+      background-color: #3a5166 !important;
+    }
+    .page-wrapper {
+      background-color: #1a2332;
+    }
+    .navbar {
+      background-color: #1a2332 !important;
+      border: none !important;
+    }
+    .error-banner {
+      background-color: #4a2020;
+      border: 1px solid #6b3030;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+      overflow: hidden;
+      color: #ffcccc;
+    }
+    .error-banner-header {
+      padding: 1rem;
+      background-color: #3d1a1a;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background-color 0.2s;
+    }
+    .error-banner-header:hover {
+      background-color: #4a2020;
+    }
+    .error-banner-title {
+      margin: 0;
+      color: #ffcccc;
+      font-weight: 600;
+      font-size: 1rem;
+    }
+    .error-banner-icon {
+      transition: transform 0.2s;
+      color: #ff9999;
+    }
+    .error-banner-icon.expanded {
+      transform: rotate(90deg);
+    }
+    .error-banner-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+      background-color: #4a2020;
+    }
+    .error-banner-content.expanded {
+      max-height: 500px;
+      transition: max-height 0.5s ease-in;
+    }
+    .error-banner-inner {
+      padding: 1rem;
+      color: #ffdddd;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body class="dark-mode">
+  <div class="page-wrapper">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <input type="text" class="form-control mb-2" id="json-url" placeholder="Enter URL">
+      <button class="btn btn-primary btn-block mb-3" id="load-json">Load JSON</button>
+      
+      <div class="text-center mb-2" style="color: #8fa3b8;">- OR -</div>
+      
+      <label for="json-file" class="btn btn-secondary btn-block" style="cursor: pointer; text-align: center;">
+        Choose File
+      </label>
+      <input type="file" id="json-file" accept=".json" style="display: none;">
+    </div>
+
+    <!-- Main Content -->
+    <div class="content">
+
+    <!-- Navbar -->
+    <div class="navbar">
+    </div>
+
+      <div class="content-wrapper">
+        <div class="row">
+          <div class="col-lg-12">
+            <div class="card">
+              <div class="card-header">
+                <!-- Error Banners -->
+                <div id="error-banner-compatibility" class="error-banner" style="display: none;">
+                  <div class="error-banner-header">
+                    <span class="error-banner-title">⚠️ Compatibility mode is running</span>
+                    <span class="error-banner-icon">▶</span>
+                  </div>
+                  <div class="error-banner-content">
+                    <div class="error-banner-inner">
+                      <strong>How to fix:</strong><br>
+                      You need to disable compatibility mode for <strong>all</strong> GTA V executables:<br>
+                      • Right-click each .exe file (GTA5.exe, GTAVLauncher.exe, etc.)<br>
+                      • Select Properties → Compatibility tab<br>
+                      • Uncheck "Run this program in compatibility mode"<br>
+                      • Apply and restart the game
+                    </div>
+                  </div>
+                </div>
+                <div id="error-banner-update" class="error-banner" style="display: none;">
+                  <div class="error-banner-header">
+                    <span class="error-banner-title">⚠️ Stand is not up-to-date</span>
+                    <span class="error-banner-icon">▶</span>
+                  </div>
+                  <div class="error-banner-content">
+                    <div class="error-banner-inner">
+                      <strong>How to fix:</strong><br>
+                      • Open Stand Launchpad<br>
+                      • Click "Check for Updates"<br>
+                      • Download and install the latest version<br>
+                      • Restart Stand after updating
+                    </div>
+                  </div>
+                </div>
+                <div id="error-banner-sha" class="error-banner" style="display: none;">
+                  <div class="error-banner-header">
+                    <span class="error-banner-title">⚠️ SHA validation check failed</span>
+                    <span class="error-banner-icon">▶</span>
+                  </div>
+                  <div class="error-banner-content">
+                    <div class="error-banner-inner">
+                      <strong>How to fix:</strong><br>
+                      • Verify your Stand installation files are not corrupted<br>
+                      • Re-download Stand from the official website<br>
+                      • Temporarily disable antivirus during installation<br>
+                      • Make sure no files were modified or blocked
+                    </div>
+                  </div>
+                </div>
+                <div id="error-banner-connect" class="error-banner" style="display: none;">
+                  <div class="error-banner-header">
+                    <span class="error-banner-title">⚠️ Unable to connect to stand.gg</span>
+                    <span class="error-banner-icon">▶</span>
+                  </div>
+                  <div class="error-banner-content">
+                    <div class="error-banner-inner">
+                      <strong>How to fix:</strong><br>
+                      • Check your internet connection<br>
+                      • Verify stand.gg is accessible in your browser<br>
+                      • Temporarily disable firewall/VPN<br>
+                      • Check if your ISP is blocking the connection<br>
+                      • Try using a different DNS server (e.g., 1.1.1.1 or 8.8.8.8)
+                    </div>
+                  </div>
+                </div>
+                <div id="error-banner-network" class="error-banner" style="display: none;">
+                  <div class="error-banner-header">
+                    <span class="error-banner-title">⚠️ Network issues detected</span>
+                    <span class="error-banner-icon">▶</span>
+                  </div>
+                  <div class="error-banner-content">
+                    <div class="error-banner-inner">
+                      <strong>How to fix:</strong><br>
+                      • Check your internet connection stability<br>
+                      • Restart your router/modem<br>
+                      • Disable any VPN or proxy<br>
+                      • Check if other applications can connect to the internet<br>
+                      • Try connecting via mobile hotspot to test
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="card-body" id="json-content">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+  <script src="index.js"></script>
+</body>
+</html>
