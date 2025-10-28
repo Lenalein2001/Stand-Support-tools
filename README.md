@@ -2,6 +2,26 @@
 
 Tools to assist support staff with troubleshooting and diagnostics.
 
+## AV Searcher (Windows)
+
+A small Windows PowerShell GUI that shows which antivirus is ACTIVE vs PASSIVE and provides quick actions.
+
+### Easiest way to launch (no tech skills required)
+
+- Double‑click `AVSearcher/Start-AVSearcher.bat` (small, self‑contained launcher)
+- Or: right‑click `AVSearcher/AVSearcher.ps1` → Run with PowerShell
+
+### If Windows blocks it
+
+- SmartScreen: click “More info” → “Run anyway”.
+- “This file came from another computer”: Right‑click the file → Properties → check “Unblock” → OK.
+- Corporate policy blocking scripts: the launcher uses `-ExecutionPolicy Bypass` for this run only. If still blocked, run as an administrator or contact IT.
+
+### What you’ll see
+
+- Header shows the active product (e.g., “ACTIVE PROTECTION: Avast …”).
+- Grid lists antivirus products with status: [ACTIVE], [PASSIVE], [DISABLED], [UNKNOWN].
+
 ## DiagnosticsViewer
 
 A standalone web-based viewer for Stand diagnostics JSON files.
@@ -29,3 +49,11 @@ A standalone web-based viewer for Stand diagnostics JSON files.
 ### Troubleshooting
 
 If you cannot load a remote URL, download the JSON file first and use the local file option instead.
+
+### Notes
+
+- `av_searcher.bat` is a legacy script kept for reference. Prefer the PowerShell GUI (`AVSearcher/AVSearcher.ps1`) using `AVSearcher/Start-AVSearcher.bat`.
+
+## Credits
+
+- DiagnosticsViewer: original idea by @alessandromrc — https://github.com/alessandromrc
