@@ -53,7 +53,13 @@ If you cannot load a remote URL, download the JSON file first and use the local 
 
 ### Notes
 
-- `av_searcher.bat` is a legacy script kept for reference. Prefer the PowerShell GUI (`AVSearcher/AVSearcher.ps1`) using `AVSearcher/Start-AVSearcher.bat`.
+- `av_searcher.bat` is a legacy script kept for reference. Prefer the PowerShell GUI (`AVSearcher/AVSearcher.ps1`) using `AVSearcher/Start-AVSearcher.vbs` (fully hidden). If VBS is disabled by policy, use `AVSearcher/Start-AVSearcher.bat`.
+
+### Folder structure
+
+- `AVSearcher/AVSearcher.ps1` — main GUI script
+- `AVSearcher/Start-AVSearcher.vbs` — recommended one‑click launcher (hidden console)
+- `AVSearcher/Start-AVSearcher.bat` — fallback launcher (may briefly show a console)
 
 ## Credits
 

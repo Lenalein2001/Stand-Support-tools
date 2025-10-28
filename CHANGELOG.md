@@ -34,3 +34,13 @@ Initial consolidated release for the AV Searcher and docs polish.
 - Path handling expands environment variables and extracts .exe candidates for Open/Launch.
 
 [0.1.0]: https://github.com/Lenalein2001/Stand-Support-tools/releases/tag/v0.1.0
+
+## [0.1.1] - 2025-10-28
+
+### Fixed
+- Hidden launcher: `AVSearcher/Start-AVSearcher.vbs` now reliably starts the GUI with no visible console using `-WindowStyle Hidden` and hidden WSH run, and reports a clear error if `AVSearcher.ps1` is missing.
+
+### Notes
+- Prefer the VBS launcher for a fully hidden experience; use the BAT as a fallback where Windows Script Host (VBS) is disabled by policy.
+
+[0.1.1]: https://github.com/Lenalein2001/Stand-Support-tools/compare/v0.1.0...v0.1.1
