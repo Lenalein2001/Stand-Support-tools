@@ -8,14 +8,15 @@ A small Windows PowerShell GUI that shows which antivirus is ACTIVE vs PASSIVE a
 
 ### Easiest way to launch (no tech skills required)
 
-- Double‑click `AVSearcher/Start-AVSearcher.bat` (small, self‑contained launcher)
+- Double‑click `AVSearcher/Start-AVSearcher.vbs` (fully hidden console)
+- Or: double‑click `AVSearcher/Start-AVSearcher.bat` (may flash a console briefly)
 - Or: right‑click `AVSearcher/AVSearcher.ps1` → Run with PowerShell
 
 ### If Windows blocks it
 
 - SmartScreen: click “More info” → “Run anyway”.
 - “This file came from another computer”: Right‑click the file → Properties → check “Unblock” → OK.
-- Corporate policy blocking scripts: the launcher uses `-ExecutionPolicy Bypass` for this run only. If still blocked, run as an administrator or contact IT.
+- Corporate policy blocking scripts: the launchers use `-ExecutionPolicy Bypass` for this run only. If still blocked, run as an administrator or contact IT. If Windows Script Host (VBS) is disabled by policy, use the BAT launcher.
 
 ### What you’ll see
 
