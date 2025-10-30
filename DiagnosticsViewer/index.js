@@ -511,4 +511,85 @@ document.addEventListener('DOMContentLoaded', function() {
             container.innerHTML = '<p class="text-danger">Please select a valid JSON file.</p>';
         }
     });
+
+    // Drag-and-drop support
+
+    function processJsonAfterLoad(jsonData) {
+        dataArray.push(jsonData);
+        container.innerHTML = '';
+        createHTMLForJSON(jsonData, container);
+        checkForErrors(jsonData);
+        const downloadButton = document.getElementById('download-profile');
+        if (downloadButton) {
+            downloadButton.onclick = function() { downloadProfileData(jsonData); };
+        }
+    }
+
+    function tryHandleFile(file) {
+        if (!file) return false;
+        if (!(/\.json$/i.test(file.name) || file.type === 'application/json')) {
+            container.innerHTML = '<p class="text-danger">Drop a .json file to load it.</p>';
+            return true;
+        }
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            try {
+                hideAllErrorBanners();
+                const jsonData = JSON.parse(ev.target.result);
+                processJsonAfterLoad(jsonData);
+            } catch (err) {
+                container.innerHTML = '<p class="text-danger">Failed to parse dropped file: ' + err.message + '</p>';
+            }
+        };
+        reader.readAsText(file);
+        return true;
+    }
+
+    function isFileDrag(e) {
+        try {
+            const dt = e.dataTransfer;
+            if (!dt) return false;
+            // Most reliable: check DataTransferItem kinds
+            if (dt.items && dt.items.length) {
+                for (const it of Array.from(dt.items)) {
+                    if (it.kind === 'file') return true;
+                }
+            }
+            // Some environments only populate files during dragover
+            if (dt.files && dt.files.length) return true;
+            const types = dt.types ? Array.from(dt.types) : [];
+            if (types.includes('Files')) return true;
+            // Heuristic: some Windows shells provide no types on dragenter; assume file
+            if ((e.type === 'dragenter' || e.type === 'dragover') && types.length === 0) return true;
+            return false;
+        } catch { return true; }
+    }
+
+    function onDragEnter(e) {
+        if (!isFileDrag(e)) return; // ignore text/image drags
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    }
+
+    function onDragOver(e) {
+        if (!isFileDrag(e)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    }
+
+    // Attach to both window and document with capture phase to catch all drag events
+    window.addEventListener('dragenter', onDragEnter, true);
+    window.addEventListener('dragover', onDragOver, true);
+    window.addEventListener('drop', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        const files = e.dataTransfer && e.dataTransfer.files;
+        const file = files && files[0];
+        tryHandleFile(file);
+    }, true);
+
+    document.addEventListener('dragenter', onDragEnter, true);
+    document.addEventListener('dragover', onDragOver, true);
   });
