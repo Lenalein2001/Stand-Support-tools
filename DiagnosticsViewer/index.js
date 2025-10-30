@@ -373,27 +373,76 @@ document.addEventListener('DOMContentLoaded', function() {
         URL.revokeObjectURL(url);
     }
 
+    // Helper: fetch with timeout using AbortController
+    async function fetchWithTimeout(resource, options = {}) {
+        const { timeout = 8000 } = options; // default 8s per proxy
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), timeout);
+        try {
+            const response = await fetch(resource, { ...options, signal: controller.signal });
+            return response;
+        } finally {
+            clearTimeout(id);
+        }
+    }
+
+    // Build proxy list and request functions (return parsed JSON)
+    function buildProxyRequests(url) {
+        const targets = [
+            { name: 'AllOrigins', url: `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}` },
+            { name: 'CorsProxy.io', url: `https://corsproxy.io/?${encodeURIComponent(url)}` },
+            { name: 'Jina AI Mirror', url: `https://r.jina.ai/${url.startsWith('http') ? url : `http://${url}`}` },
+            { name: 'CodeTabs', url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}` }
+        ];
+
+        return targets.map(t => async () => {
+            console.log(`Trying CORS proxy: ${t.name} - ${t.url}`);
+            const res = await fetchWithTimeout(t.url, { headers: { 'Accept': 'application/json, text/plain; */*' }, timeout: 9000 });
+            if (!res.ok) throw new Error(`${t.name} HTTP ${res.status}`);
+            // Some proxies return text/plain; parse manually
+            let bodyText = await res.text();
+            try {
+                return JSON.parse(bodyText);
+            } catch (e) {
+                // Some proxies wrap results; try to extract JSON if possible
+                throw new Error(`${t.name} returned non-JSON or malformed content`);
+            }
+        });
+    }
+
+    // Run requests in parallel and return first success
+    async function fetchViaAnyProxy(url) {
+        const requests = buildProxyRequests(url);
+        const errors = [];
+        const wrapped = requests.map(fn => fn().catch(err => { errors.push(err); throw err; }));
+        try {
+            return await Promise.any(wrapped);
+        } catch (aggregate) {
+            // All failed
+            const last = errors[errors.length - 1];
+            const details = errors.map(e => e.message).join(' | ');
+            throw new Error(`All CORS proxies failed (${errors.length}). Last: ${last?.message}. Details: ${details}`);
+        }
+    }
+
     async function loadJSONFromUrl(url) {
         try {
-            // Use CORS proxy for external URLs to avoid CORS issues
-            let fetchUrl = url;
+            // Hide all error banners immediately when starting to load
+            hideAllErrorBanners();
+
+            let jsonData;
+
             if (url.startsWith('http://') || url.startsWith('https://')) {
-                // Using allOrigins CORS proxy
-                fetchUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+                container.innerHTML = '<p class="text-info">Loading via multiple proxies…</p>';
+                jsonData = await fetchViaAnyProxy(url);
+            } else {
+                // Local/relative fetch
+                container.innerHTML = '<p class="text-info">Loading JSON…</p>';
+                const response = await fetchWithTimeout(url, { headers: { 'Accept': 'application/json' }, timeout: 8000 });
+                if (!response.ok) throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                jsonData = await response.json();
             }
-            
-            const response = await fetch(fetchUrl, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error('Network response was not ok: ' + response.statusText);
-            }
-            
-            const jsonData = await response.json();
+
             dataArray.push(jsonData);
 
             container.innerHTML = '';
@@ -402,12 +451,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const downloadButton = document.getElementById('download-profile');
             if (downloadButton) {
-                downloadButton.onclick = function() {
-                    downloadProfileData(jsonData);
-                 };
+                downloadButton.onclick = function() { downloadProfileData(jsonData); };
             }
         } catch (error) {
             console.error('Error loading JSON:', error);
+            hideAllErrorBanners();
             container.innerHTML = '<p class="text-danger">Failed to load JSON: ' + error.message + '</p>';
         }
     }
@@ -417,6 +465,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (url) {
             loadJSONFromUrl(url);
         } else {
+            hideAllErrorBanners();
             container.innerHTML = '<p class="text-danger">Please enter a URL.</p>';
         }
     });
@@ -435,6 +484,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
+                    // Hide all error banners when starting to load new file
+                    hideAllErrorBanners();
+
                     const jsonData = JSON.parse(e.target.result);
                     dataArray.push(jsonData);
 
@@ -455,6 +507,7 @@ document.addEventListener('DOMContentLoaded', function() {
             };
             reader.readAsText(file);
         } else {
+            hideAllErrorBanners();
             container.innerHTML = '<p class="text-danger">Please select a valid JSON file.</p>';
         }
     });
