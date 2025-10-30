@@ -1,10 +1,44 @@
 # Stand Support Tools
 
-Tools to assist support staff with troubleshooting and diagnostics.
+Small, zero‑install tools to help support staff gather and read diagnostics.
+
+## What’s inside
+
+- DiagnosticsViewer — static HTML + JS viewer for diagnostics JSON files (open directly in a browser)
+- AV Searcher — Windows PowerShell GUI that shows ACTIVE vs PASSIVE antivirus
+
+---
+
+## DiagnosticsViewer (no install)
+
+A standalone web viewer for Stand diagnostics JSON files.
+
+### Quick start
+
+1) Download the `DiagnosticsViewer/` folder
+2) Double‑click `DiagnosticsViewer/index.html` to open it in your browser
+3) Load a diagnostics JSON using any of these:
+   - From URL: paste a direct JSON URL and click “Load JSON”
+   - From file: click “Choose File” and select a `.json`
+   - Drag & drop: drop a `.json` anywhere on the page
+
+### Features
+
+- Collapsible, readable sections for nested data
+- Automatic error banners with troubleshooting guidance
+- Parallel CORS proxy loading for many remote URLs (e.g., Discord CDN)
+- Dark theme
+
+### Tips & troubleshooting
+
+- If URL loading fails, right‑click the Discord attachment → “Save link as…”, then use “Choose File” or drag & drop the saved `.json`.
+- The viewer runs entirely in your browser—no install, no server.
+
+---
 
 ## AV Searcher (Windows)
 
-A small Windows PowerShell GUI that shows which antivirus is ACTIVE vs PASSIVE and provides quick actions.
+A small PowerShell GUI that clearly indicates which antivirus is ACTIVE vs PASSIVE.
 
 ### Easiest way to launch (no tech skills required)
 
@@ -14,49 +48,24 @@ A small Windows PowerShell GUI that shows which antivirus is ACTIVE vs PASSIVE a
 
 ### If Windows blocks it
 
-- SmartScreen: click “More info” → “Run anyway”.
-- “This file came from another computer”: Right‑click the file → Properties → check “Unblock” → OK.
-- Corporate policy blocking scripts: the launchers use `-ExecutionPolicy Bypass` for this run only. If still blocked, run as an administrator or contact IT. If Windows Script Host (VBS) is disabled by policy, use the BAT launcher.
+- SmartScreen: “More info” → “Run anyway”.
+- “This file came from another computer”: Right‑click → Properties → check “Unblock” → OK.
+- Corporate policy: launchers use `-ExecutionPolicy Bypass` for this run only. If Windows Script Host (VBS) is disabled by policy, use the BAT launcher.
 
 ### What you’ll see
 
-- Header shows the active product (e.g., “ACTIVE PROTECTION: Avast …”).
-- Grid lists antivirus products with status: [ACTIVE], [PASSIVE], [DISABLED], [UNKNOWN].
-
-## DiagnosticsViewer
-
-A standalone web-based viewer for Stand diagnostics JSON files.
-
-### Requirements
-
-- Any modern web browser (Chrome, Firefox, Edge, Safari)
-- No installation or dependencies required
-
-### Usage
-
-1. Download the `DiagnosticsViewer` folder
-2. Open `DiagnosticsViewer/index.html` in your web browser
-3. Load a diagnostics JSON file using one of these methods:
-   - **From URL**: Paste the JSON file URL in the sidebar and click "Load JSON"
-   - **From local file**: Click "Choose File" and select your `.json` file
-
-### Features
-
-- View structured diagnostics data with collapsible sections
-- Automatic error detection with troubleshooting guidance
-- Support for remote URLs (Discord CDN, etc.)
-- Dark theme for comfortable viewing
-
-### Troubleshooting
-
-If you cannot load a remote URL, download the JSON file first and use the local file option instead.
+- Header shows the active product (e.g., “ACTIVE PROTECTION: …”).
+- Grid lists products with status: [ACTIVE], [PASSIVE], [DISABLED], [UNKNOWN].
 
 ### Notes
 
-- `av_searcher.bat` is a legacy script kept for reference. Prefer the PowerShell GUI (`AVSearcher/AVSearcher.ps1`) using `AVSearcher/Start-AVSearcher.vbs` (fully hidden). If VBS is disabled by policy, use `AVSearcher/Start-AVSearcher.bat`.
+- `av_searcher.bat` is legacy (reference only). Prefer the VBS launcher; use the BAT when VBS is disabled by policy.
 
-### Folder structure
+---
 
+## Folder structure
+
+- `DiagnosticsViewer/` — open `index.html` directly
 - `AVSearcher/AVSearcher.ps1` — main GUI script
 - `AVSearcher/Start-AVSearcher.vbs` — recommended one‑click launcher (hidden console)
 - `AVSearcher/Start-AVSearcher.bat` — fallback launcher (may briefly show a console)
