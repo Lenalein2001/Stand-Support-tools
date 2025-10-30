@@ -57,6 +57,21 @@ A small PowerShell GUI that clearly indicates which antivirus is ACTIVE vs PASSI
 - Header shows the active product (e.g., “ACTIVE PROTECTION: …”).
 - Grid lists products with status: [ACTIVE], [PASSIVE], [DISABLED], [UNKNOWN].
 
+#### Context-aware Help button
+
+- When you select a row, the Help button updates:
+   - Windows Defender → “Exclusion Guide” (opens a short YouTube tutorial)
+   - Any other AV → “Uninstall <AV>” (opens a Google search tailored to that product)
+- The button stays disabled until you select a product.
+
+#### How statuses are determined (short)
+
+- [ACTIVE] means the product is currently protecting the system.
+- [PASSIVE] is specific to Windows Defender when Windows sets it to passive mode (e.g., another AV is active).
+- [DISABLED] means the product is installed but not providing protection.
+
+Behind the scenes (brief): Defender is marked PASSIVE only when Windows reports it that way; it’s ACTIVE only when the WinDefend service is running. If Windows can’t be queried directly, SecurityCenter2 is used as a fallback source.
+
 ### Notes
 
 - `av_searcher.bat` is legacy (reference only). Prefer the VBS launcher; use the BAT when VBS is disabled by policy.
