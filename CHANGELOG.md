@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [0.2.1] - 2025-10-30
+
+### Added
+- AV Searcher: Context-aware help button — shows "Exclusion Guide" for Windows Defender (YouTube tutorial) and "Uninstall <AV>" for third‑party products (opens a search).
+
+### Fixed
+- AV Searcher: Reliable Windows Defender state detection:
+	- Passive when `PassiveMode` registry value is non‑zero
+	- Active/Disabled determined via `WinDefend` service status (authoritative)
+	- SecurityCenter2 `productState` used as a fallback
+
+[0.2.1]: https://github.com/Lenalein2001/Stand-Support-tools/compare/v0.2.0...v0.2.1
+
 ## [0.2.0] - 2025-10-30
 
 ### Added

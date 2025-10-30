@@ -400,6 +400,47 @@ $btnLaunch.Add_Click({
 })
 $form.Controls.Add($btnLaunch)
 
+$btnHelp = Create-StyledButton "Select AV..." 330 502
+$btnHelp.Enabled = $false
+$btnHelp.Add_Click({
+    if ($dataGrid.SelectedRows.Count -gt 0) {
+        $selectedRow = $dataGrid.SelectedRows[0]
+        $name = $selectedRow.Cells[0].Value
+        
+        # Check if it's Windows Defender
+        if ($name -like '*Windows Defender*' -or $name -like '*Windows Security*') {
+            # Open YouTube tutorial for Defender exclusions
+            Start-Process "https://www.youtube.com/watch?v=UbtuQwgNfp0"
+        } else {
+            # Open Google search for uninstalling the specific AV
+            $searchQuery = "How to uninstall $name"
+            $encodedQuery = [System.Uri]::EscapeDataString($searchQuery)
+            Start-Process "https://www.google.com/search?q=$encodedQuery"
+        }
+    }
+})
+$form.Controls.Add($btnHelp)
+
+# Update button text when selection changes
+$dataGrid.Add_SelectionChanged({
+    if ($dataGrid.SelectedRows.Count -gt 0) {
+        $selectedRow = $dataGrid.SelectedRows[0]
+        $name = $selectedRow.Cells[0].Value
+        
+        if ($name -like '*Windows Defender*' -or $name -like '*Windows Security*') {
+            $btnHelp.Text = "Exclusion Guide"
+        } else {
+            # Truncate long AV names for button
+            $shortName = if ($name.Length -gt 15) { $name.Substring(0, 15) + "..." } else { $name }
+            $btnHelp.Text = "Uninstall $shortName"
+        }
+        $btnHelp.Enabled = $true
+    } else {
+        $btnHelp.Text = "Select AV..."
+        $btnHelp.Enabled = $false
+    }
+})
+
 $btnRefresh = Create-StyledButton "Refresh" 820 502
 $btnRefresh.Add_Click({
     Refresh-AVList
