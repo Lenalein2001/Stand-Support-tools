@@ -95,23 +95,40 @@ function Get-AVFromSecurityCenterWmic {
 # Returns Defender status by reading PassiveMode registry value
 function Get-DefenderStatus {
     try {
-        $passiveModeValue = (Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows Defender' -Name 'PassiveMode' -ErrorAction SilentlyContinue).PassiveMode
-        $serviceRunning = (Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows Defender' -Name 'IsServiceRunning' -ErrorAction SilentlyContinue).IsServiceRunning
-        
-        # PassiveMode=1 means Defender is in passive mode
-        if ($passiveModeValue -eq 1) { return 'Passive' }
-        
-        # PassiveMode=0 or not set, check if service is running
-        if ($serviceRunning -eq 1) { return $true }
-        
-        # If service not running, disabled
-        if ($serviceRunning -eq 0) { return $false }
-        
+        # 1) Explicit PassiveMode check (authoritative when present)
+        $pm = (Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows Defender' -Name 'PassiveMode' -ErrorAction SilentlyContinue).PassiveMode
+        if ($null -ne $pm -and ([int]$pm) -ne 0) {
+            return 'Passive'
+        }
+
+        # 2) Service status via SCM (authoritative for Active/Disabled)
+    $svc = Get-Service -Name 'WinDefend' -ErrorAction SilentlyContinue
+        if ($svc) {
+            if ($svc.Status -eq [System.ServiceProcess.ServiceControllerStatus]::Running) {
+                return $true  # Active
+            }
+            elseif ($svc.Status -in @(
+                [System.ServiceProcess.ServiceControllerStatus]::Stopped,
+                [System.ServiceProcess.ServiceControllerStatus]::StopPending,
+                [System.ServiceProcess.ServiceControllerStatus]::Paused
+            )) {
+                return $false # Disabled
+            }
+        }
+
+        # 3) Fallback to SecurityCenter2 product state for Defender
+        $defProd = Get-CimInstance -Namespace 'root\SecurityCenter2' -ClassName 'AntiVirusProduct' -ErrorAction SilentlyContinue |
+            Where-Object { $_.displayName -like '*Windows Defender*' -or $_.displayName -like '*Windows Security*' } |
+            Select-Object -First 1
+        if ($defProd) {
+            $state = [int]$defProd.productState
+            $enabled = ($state -band 0x1000) -ne 0
+            return ($enabled -eq $true)
+        }
+
         return $null
     }
-    catch {
-        return $null
-    }
+    catch { return $null }
 }
 
 # Path helpers (shared)
