@@ -192,61 +192,162 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function parseProfile(profileArray) {
+        // Helper to get indentation width treating tabs and spaces as 1 char each
+        function getIndent(line) {
+            let i = 0;
+            while (i < line.length && (line[i] === ' ' || line[i] === '\t')) i++;
+            return i;
+        }
+
+        // Build a tree from the indentation-based lines
+        const root = { key: 'root', value: null, children: [], indent: -1 };
+        const stack = [root];
+
+        for (const rawLine of profileArray) {
+            if (!rawLine) continue;
+            const line = String(rawLine);
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+            const indent = getIndent(line);
+
+            while (stack.length && indent <= stack[stack.length - 1].indent) {
+                stack.pop();
+            }
+
+            // Split on first ':' to determine key/value
+            const colonIdx = trimmed.indexOf(':');
+            let key = trimmed;
+            let value = null;
+            if (colonIdx !== -1) {
+                key = trimmed.slice(0, colonIdx).trim();
+                value = trimmed.slice(colonIdx + 1).trim();
+            }
+
+            const node = { key, value, children: [], indent };
+            stack[stack.length - 1].children.push(node);
+            stack.push(node);
+        }
+
+        // Rendering helpers
+        function renderLeaf(key, value) {
+            const section = document.createElement('div');
+            section.classList.add('collapsible-section');
+
+            const inner = document.createElement('div');
+            inner.classList.add('collapsible-inner');
+            inner.style.padding = '0.5rem 1rem';
+
+            const titleEl = document.createElement('strong');
+            titleEl.textContent = key + ':';
+            titleEl.style.color = '#8fa3b8';
+            inner.appendChild(titleEl);
+
+            const valueEl = document.createElement('span');
+            valueEl.style.marginLeft = '0.5rem';
+            valueEl.style.color = '#c5d1de';
+            valueEl.textContent = value ?? '';
+            inner.appendChild(valueEl);
+
+            section.appendChild(inner);
+            return section;
+        }
+
+        function renderGroup(key, children) {
+            const section = document.createElement('div');
+            section.classList.add('collapsible-section');
+
+            const header = document.createElement('div');
+            header.classList.add('collapsible-header');
+
+            const titleEl = document.createElement('h5');
+            titleEl.textContent = key || '(Section)';
+
+            const icon = document.createElement('span');
+            icon.classList.add('collapsible-icon');
+            icon.textContent = '▶';
+
+            header.appendChild(titleEl);
+            header.appendChild(icon);
+
+            const contentDiv = document.createElement('div');
+            contentDiv.classList.add('collapsible-content');
+
+            const inner = document.createElement('div');
+            inner.classList.add('collapsible-inner');
+
+            for (const child of children) {
+                inner.appendChild(renderNode(child));
+            }
+
+            contentDiv.appendChild(inner);
+
+            header.addEventListener('click', function() {
+                const isExpanded = contentDiv.classList.contains('expanded');
+                if (isExpanded) {
+                    contentDiv.classList.remove('expanded');
+                    icon.classList.remove('expanded');
+                } else {
+                    contentDiv.classList.add('expanded');
+                    icon.classList.add('expanded');
+                }
+            });
+
+            section.appendChild(header);
+            section.appendChild(contentDiv);
+            return section;
+        }
+
+        function renderNode(node) {
+            if (node.children && node.children.length > 0) {
+                // If a group node also carries a value, show it as a small subtitle
+                const groupEl = renderGroup(node.key, node.children);
+                if (node.value) {
+                    const subtitle = document.createElement('div');
+                    subtitle.style.color = '#8fa3b8';
+                    subtitle.style.fontSize = '0.9rem';
+                    subtitle.style.margin = '0.25rem 1rem 0 1rem';
+                    subtitle.textContent = node.key + ': ' + node.value;
+                    // Place subtitle right under header
+                    const contentDiv = groupEl.querySelector('.collapsible-content');
+                    if (contentDiv && contentDiv.firstChild) {
+                        const inner = contentDiv.firstChild;
+                        inner.prepend(subtitle);
+                    }
+                }
+                return groupEl;
+            }
+            return renderLeaf(node.key, node.value);
+        }
+
+        // Outer Profile wrapper (collapsible)
         const profileSection = document.createElement('div');
         profileSection.classList.add('collapsible-section');
 
-        // Create header
         const header = document.createElement('div');
         header.classList.add('collapsible-header');
-        
+
         const titleElement = document.createElement('h5');
         titleElement.textContent = 'Profile';
-        
+
         const icon = document.createElement('span');
         icon.classList.add('collapsible-icon');
         icon.textContent = '▶';
-        
+
         header.appendChild(titleElement);
         header.appendChild(icon);
-        
-        // Create content container
+
         const contentDiv = document.createElement('div');
         contentDiv.classList.add('collapsible-content');
-        
+
         const innerDiv = document.createElement('div');
         innerDiv.classList.add('collapsible-inner');
 
-        let currentParent = innerDiv;
-        let previousIndentation = 0;
-        const parentStack = [innerDiv];
+        // Render built tree (skip artificial root)
+        for (const child of root.children) {
+            innerDiv.appendChild(renderNode(child));
+        }
 
-        profileArray.forEach(line => {
-            const currentIndentation = line.search(/\S/);
-            const content = line.trim();
-
-            const listItem = document.createElement('div');
-            listItem.textContent = content;
-
-            if (currentIndentation > previousIndentation) {
-                const nestedSection = document.createElement('div');
-                nestedSection.classList.add('pl-4');
-                currentParent.appendChild(nestedSection);
-                parentStack.push(currentParent);
-                currentParent = nestedSection;
-            } else if (currentIndentation < previousIndentation) {
-                let diff = previousIndentation - currentIndentation;
-                while (diff >= 0 && parentStack.length > 0) {
-                    currentParent = parentStack.pop();
-                    diff -= 1;
-                }
-            }
-
-            if (currentParent) {
-                currentParent.appendChild(listItem);
-            }
-            previousIndentation = currentIndentation;
-        });
-
+        // Download button
         const downloadButton = document.createElement('button');
         downloadButton.id = 'download-profile';
         downloadButton.classList.add('btn', 'btn-secondary', 'mt-3');
@@ -254,8 +355,7 @@ document.addEventListener('DOMContentLoaded', function() {
         innerDiv.appendChild(downloadButton);
 
         contentDiv.appendChild(innerDiv);
-        
-        // Add click handler to toggle
+
         header.addEventListener('click', function() {
             const isExpanded = contentDiv.classList.contains('expanded');
             if (isExpanded) {
@@ -266,10 +366,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 icon.classList.add('expanded');
             }
         });
-        
+
         profileSection.appendChild(header);
         profileSection.appendChild(contentDiv);
-
         return profileSection;
     }
 

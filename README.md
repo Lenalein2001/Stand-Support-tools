@@ -25,6 +25,7 @@ A standalone web viewer for Stand diagnostics JSON files.
 ### Features
 
 - Collapsible, readable sections for nested data
+- Profile tree: indentation‑based profile is parsed into a collapsible tree (each section can expand/collapse)
 - Automatic error banners with troubleshooting guidance
 - Parallel CORS proxy loading for many remote URLs (e.g., Discord CDN)
 - Dark theme
