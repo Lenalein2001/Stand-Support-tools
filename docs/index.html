@@ -1,0 +1,681 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Category Collapse/Expand UI</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #60a5fa;
+      --border: #374151;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Segoe UI, system-ui, -apple-system, sans-serif;
+      background: linear-gradient(180deg, #0b1220, var(--bg));
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .wrap { max-width: 1100px; margin: 24px auto; padding: 0 16px 24px; }
+    h1 { margin: 0 0 8px; font-size: 1.35rem; }
+    .hint { color: var(--muted); font-size: 0.92rem; margin-bottom: 16px; }
+    .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+    .toolbar button {
+      background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+      padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 0.9rem;
+    }
+		.toolbar input[type="text"] {
+			background: var(--panel-2);
+			color: var(--text);
+			border: 1px solid var(--border);
+			padding: 8px 12px;
+			border-radius: 8px;
+			font-size: 0.9rem;
+			min-width: 240px;
+		}
+    .toolbar button:hover { border-color: var(--accent); }
+    .status { color: var(--muted); font-size: 0.9rem; margin: 8px 0 12px; }
+    .hover-info {
+      background: rgba(17, 24, 39, 0.8); border: 1px solid var(--border); border-radius: 12px;
+      padding: 10px; margin: 8px 0 12px; color: var(--muted); min-height: 44px;
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .tree {
+      background: rgba(17, 24, 39, 0.8); border: 1px solid var(--border); border-radius: 12px;
+      padding: 10px; max-height: 76vh; overflow: auto;
+    }
+    .node { margin: 3px 0; border-left: 1px dashed rgba(156, 163, 175, 0.25); padding-left: 8px; }
+    details.node > summary {
+      list-style: none; cursor: pointer; padding: 6px 8px; border-radius: 8px;
+      user-select: none; border: 1px solid transparent;
+    }
+    details.node > summary::-webkit-details-marker { display: none; }
+    details.node > summary::before { content: "\25B6"; display: inline-block; width: 1.1em; color: var(--accent); }
+    details.node[open] > summary::before { content: "\25BC"; }
+    details.node > summary:hover { background: rgba(96, 165, 250, 0.08); border-color: rgba(96, 165, 250, 0.35); }
+    .leaf { margin: 3px 0; padding: 6px 8px 6px 20px; border-radius: 8px; color: #d1d5db; white-space: pre-wrap; word-break: break-word; }
+    .leaf:hover { background: rgba(148, 163, 184, 0.08); }
+    .selected { outline: 1px solid rgba(96, 165, 250, 0.8); background: rgba(96, 165, 250, 0.14); }
+    .main-category > summary { background: rgba(96, 165, 250, 0.08); border-color: rgba(96, 165, 250, 0.35); font-weight: 600; }
+    .empty { color: var(--muted); padding: 8px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Collapsible Categories UI</h1>
+	<div class="hint">Open this file only. Data is embedded. Hover an item to see text after &#8212;.</div>
+
+    <div class="toolbar">
+			<input id="searchInput" type="text" placeholder="Search tree (Ctrl+F)" />
+			<button id="clearSearchBtn" type="button">Clear Search</button>
+      <button id="expandMainBtn" type="button">Expand 7 Main Categories</button>
+      <button id="collapseMainBtn" type="button">Collapse 7 Main Categories</button>
+      <button id="expandAllBtn" type="button">Expand All</button>
+      <button id="collapseAllBtn" type="button">Collapse All</button>
+      <button id="copyFocusLinkBtn" type="button">Copy Address To Focus Link</button>
+    </div>
+
+    <div id="status" class="status">Loading embedded data...</div>
+	<div id="hoverInfo" class="hover-info">Hover an option to see text that appears after &#8212;.</div>
+    <div id="tree" class="tree"><div class="empty">Loading...</div></div>
+  </div>
+
+  <script>
+    const EMBEDDED_TREE_TEXT = `Self — Command: t self
+	Movement
+		Levitation
+			Levitation — Command: levitate [on/off]
+			Presets
+				Levitation
+				No Clip
+			Movement Speed (0.01 to 10000.00) — Command: levitatespeed [0.01 to 10000.00]
+			Sprint Multiplier (0.01 to 10000.00) — How fast you go while you press [Space]. — Command: levitatesprintmultiplier [0.01 to 10000.00]
+			Acceleration (0.00 to 10.00) — Acceleration increases the speed of levitation the longer you move. Resets once you sprint or stop moving. — Command: levitateaccel [0.00 to 10.00]
+			Movement Ignores Pitch — Disables forward and backward movement affecting height depending on where you're looking. — Command: levitateignorepitch [on/off]
+			Keep Momentum — Command: keepmomentum [on/off]
+			Apply Pitch to Entity — Command: levitateapplypitch [on/off]
+			Only Rotate On Movement — Command: levitaterotate [on/off]
+			Show Button Instructions — Command: levitatebuttoninstructions [on/off]
+			Min Distance From Ground (-10000.00 to 10000.00) — Command: levitatepassivemin [-10000.00 to 10000.00]
+			Max Distance From Ground (-10000.00 to 10000.00) — Command: levitatepassivemax [-10000.00 to 10000.00]
+			Speed (0 to 1000000) — Command: levitatepassivespeed [0 to 1000000]
+			Upward Force (0.00 to 10000.00) — Command: levitateassistup [0.00 to 10000.00]
+			Downward Force (0.00 to 10000.00) — Command: levitateassistdown [0.00 to 10000.00]
+			Downward Deadzone (0 to 100000) — How far from the ground you have to be before the assistant stops trying to pull you down. — Command: levitateassistdeadzone [0 to 100000]
+			Snapping (0.00 to 10000.00) — Command: levitateassistsnap [0.00 to 10000.00]
+		Walk And Run Speed (-10000.00 to 10000.00) — Command: walkspeed [-10000.00 to 10000.00]
+		Increased Friction — Reduces the slipperiness when turning with a high walk/run speed. — Command: friction [on/off]
+		Graceful Landing — Command: gracefullanding [on/off]
+		Super Jump — You can hold the jump button to jump higher. — Command: superjump [on/off]
+		Super Flight
+			Super Flight (-10000.00 to 10000.00) — Command: superflight [-10000.00 to 10000.00]
+			Button Instructions: Super Jump To Flight (On/Off)
+			Button Instructions: Controls (On/Off)
+		Walk Underwater — Command: walkunderwater [on/off]
+		Swim Speed (-10000.00 to 10000.00) — Command: swimspeed [-10000.00 to 10000.00]
+		Super Run (-10000.00 to 10000.00) — Command: superrun [-10000.00 to 10000.00]
+		Total Freedom — Allows you to sprint, sneak, and jump in interiors. — Command: movefreedom [on/off]
+		Walk On Air — Command: walkonair [on/off]
+		Swim In Air — Command: swiminair [on/off]
+		Drunk Mode — Command: drunkmode [on/off]
+		Tennis Mode — Command: tennismode [on/off]
+		Floppy Mode
+			Floppy Mode — Command: floppy [on/off]
+			Movement Speed (0.01 to 10000.00) — Command: floppyspeed [0.01 to 10000.00]
+			Sprint Multiplier (0.01 to 5.00) — How fast you go while you press [Space]. — Command: floppysprint [0.01 to 5.00]
+			Show Button Instructions — Command: floppyinstructions [on/off]
+			Prioritise Syncing — Caps the speed and disables ascend, descend, and sprint to ensure this will sync. — Command: floppysynch [on/off]
+		Reduced Collision — Enables walking through walls and vehicles. — Command: reducedcollision [on/off]
+		No Collision — Command: nocollision [on/off]
+		Freeze (On/Off)
+	Appearance
+		Transform
+			Search — Allows you to find models to transform into using their name. — Command: findmodel [clue]
+			Playable Characters
+				<5 Options>
+			Ground Animals
+				<33 Options>
+			Water Animals
+				<7 Options>
+			Flying Animals
+				<5 Options>
+			NPCs
+				<1063 Options>
+		Outfit — Command: outfit
+			Wardrobe — Command: wardrobe
+				Save Outfit
+					Save Outfit — Command: saveoutfit [name]
+					<41 More Options>
+				Prefabricated Outfits
+					Current Model: Default — The Rockstar-defined default outfit for your current model. — Command: defaultoutfit
+					Current Model: Random — Command: randomoutfit
+					Online Female: Topless — Command: toplessfemale
+					Online Male: Cop — Command: copmale
+					Online Female: Cop — Command: copfemale
+				Open Folder
+				Search — Command: searchoutfit [clue]
+			Disable Outfit Restrictions — Allows you to save outfits with duffel bags, etc. — Command: nooutfitrestrictions [on/off]
+			Disable In-Vehicle Hair Scaling — Command: nohairscaling [on/off]
+			Lock Outfit — Disallows outfit changes outside of Stand which breaks the Casino Heist and possibly other missions. ⚠️ — Command: lockoutfit [on/off]
+			<36 More Options>
+		Animations
+			Cancel — Command: cancelanim
+			Scenarios — Command: scenarios
+				<34 Options>
+			Animations — Command: animations
+				Dances — Command: dances
+					<24 Options>
+				<77 More Options>
+			Object Animations — Command: objectanimations
+				<35 Options>
+			Partial Movement (On/Off) — Allows you to move while performing an animation, at the cost of the animation's fidelity.
+			Looped Animations (On/Off) — This does not apply to scenarios.
+			Automatically Cancel (On/Off) — Automatically cancels your current animation when you attempt to move.
+		PTFX Trails
+			Particle
+				<501 Options>
+			Interval (ms) (0 to 1000) — Command: trailinterval [0 to 1000]
+			Scale (0.10 to 10.00) — Command: trailscale [0.10 to 10.00]
+			Horizontal Offset (-10.00 to 10.00) — Command: trailoffset [-10.00 to 10.00]
+			Head (On/Off)
+			Neck (On/Off)
+			Right Elbow (On/Off)
+			Left Elbow (On/Off)
+			Right Hand (On/Off)
+			Left Hand (On/Off)
+			Pelvis (On/Off)
+			Right Calf (On/Off)
+			Left Calf (On/Off)
+			Right Foot (On/Off)
+			Left Foot (On/Off)
+		Walk Style — Command: walkstyle (value)
+			<56 Options>
+		Preserve Walk Style During Combat — Prevents your character from going into "combat mode" whenever violence is around you. — Command: preservewalkstyle [on/off]
+		Scale (-10000.00 to 10000.00) — Changes the height, width, and depth of your character *locally*. — Command: scale [-10000.00 to 10000.00]
+		Scale Affects Camera — Command: scalecam [on/off]
+		Scale Affects Speed — Command: scalespeed [on/off]
+		Visual Z Correction (-10000.00 to 10000.00) — Corrects your characters visual Z position, to be used with scale. — Command: visualz [-10000.00 to 10000.00]
+		No Blood — Keeps your character free of blood. — Command: noblood [on/off]
+		Set Wetness (0 to 1000) — Command: wetness [0 to 1000]
+		Lock Wetness — Command: lockwetness [on/off]
+		Invisibility — Note: When in a vehicle, other players will still be able to see you unless you also make your vehicle invisible. — Command: invisibility (value)
+			Disabled — Command: invisibility off
+			Locally Visible — Command: invisibility remote
+			Enabled — Command: invisibility on
+		Death Effect
+			<501 Options>
+		Respawn Effect
+			<501 Options>
+	Weapons
+		Get Weapons — Command: getgun
+			All Weapons — Command: allguns — Can be used by other players with the Friendly Commands permission.
+			<8 More Options>
+		Remove Weapons — Command: removegun
+			All Weapons — Command: noguns — Can be used by other players with the Rude Commands permission.
+			<8 More Options>
+		When Shooting...
+			Anonymous Explosion (On/Off)
+			Owned Explosion (On/Off)
+			Burn (On/Off)
+			Die (On/Off)
+			Disarm (On/Off) — Will leave them with nothing but their fists.
+			Freeze (On/Off)
+			Cower (On/Off)
+			Flee (On/Off)
+			Push Away (On/Off)
+			Drive — Command: drivegun [on/off]
+			Revive — Command: revivegun [on/off]
+			Ragdoll (On/Off)
+			Repair (On/Off)
+			Weaken (On/Off) — Reduces their health so they'll die easily.
+			Delete — Command: deletegun [on/off]
+			AR Marker (On/Off)
+			Show Model Name (On/Off)
+		When Aiming...
+			Anonymous Explosion (On/Off)
+			Owned Explosion (On/Off)
+			Burn (On/Off)
+			Die (On/Off)
+			Disarm (On/Off) — Will leave them with nothing but their fists.
+			Freeze (On/Off)
+			Cower (On/Off)
+			Flee (On/Off)
+			Push Away (On/Off)
+			Drive (On/Off)
+			Revive (On/Off)
+			Ragdoll (On/Off)
+			Repair (On/Off)
+			Weaken (On/Off) — Reduces their health so they'll die easily.
+			Delete (On/Off)
+			AR Marker (On/Off)
+			Show Model Name (On/Off)
+		Gravity Gun
+			Gravity Gun — Command: gravitygun [on/off]
+			Contrived Physics — Command: gravityguncontrivedphysics [on/off]
+			Force Multiplier (0.01 to 10.00) — Command: gravitygunforce [0.01 to 10.00]
+			Collision — Command: gravityguncollision [on/off]
+		Vehicle Gun — Makes your guns shoot vehicles. — Command: vehiclegun
+			Vehicle Gun — Makes your guns shoot vehicles. — Command: vehiclegun [on/off]
+			Vehicle
+				Random
+				Super
+					<61 Options>
+				Service
+					<14 Options>
+				Utility
+					<49 Options>
+				Helicopters
+					<31 Options>
+				Motorcycles
+					<59 Options>
+				SUVs
+					<48 Options>
+				Sports
+					<122 Options>
+				Planes
+					<35 Options>
+				Emergency
+					<34 Options>
+				Military
+					<17 Options>
+				Sports Classic
+					<54 Options>
+				Compacts
+					<18 Options>
+				Sedans
+					<48 Options>
+				Boats
+					<25 Options>
+				Commercial
+					<24 Options>
+				Off-Road
+					<70 Options>
+				Vans
+					<41 Options>
+				Muscle
+					<94 Options>
+				Cycles
+					<9 Options>
+				Industrial
+					<11 Options>
+				Coupes
+					<21 Options>
+				Open Wheel
+					<4 Options>
+			Speed (20 to 200) — Command: vehiclegunspeed [20 to 200]
+			Distance (10 to 30) — Command: vehiclegundistance [10 to 30]
+		Components — Allows you to view and modify what components your selected weapon has.
+		Lock Weapons
+			Lock Weapons — Command: lockweapons [on/off]
+			Loadouts — Command: lockweaponpresets
+				Save Loadout — Saves your currently-equipped weapons into a Command Box Script to easily apply the loadout to Lock Weapons. — Command: lockweaponpresetssave [name]
+			Only Remove Selected Weapons — Turns "Lock Weapons" into a "Blacklist Weapons", such that selected weapons will only be removed. — Command: invertlockweapons [on/off]
+			<8 More Options>
+		Current Weapon: Tint — Command: weapontint
+		Current Weapon: Tint: Rainbow Mode (0 to 1000) — Command: weapontintrainbow [0 to 1000]
+		Aimbot
+			Aimbot — Command: aimbot [on/off]
+			Target Selection
+				Players — Command: aimbotplayers [on/off]
+				Pedestrians — Command: aimbotpeds [on/off]
+				Vehicles — Command: aimbotvehicles [on/off]
+				Distance (0 to 30000) — Command: aimbotrange [0 to 30000]
+				Exclude Friends — Command: aimbotexcludefriends [on/off]
+				Exclude Crew Members — Command: aimbotexcludecrewmembers [on/off]
+				Exclude Stand Users — Command: aimbotexcludestandusers [on/off]
+				Exclude Organisation Members — Command: aimbotexcludeorgmembers [on/off]
+			Show Box — Command: aimbotbox [on/off]
+			Re-engage Time (ms) (0 to 10000) — How long the aimbot will stay disabled for after you've moved the camera. — Command: aimbotlockout [0 to 10000]
+			Smoothing (0 to 1000) — Command: aimbotsmoothing [0 to 1000]
+			Line-of-Sight Check — Command: aimbotloscheck [on/off]
+			Magic Bullets — Command: aimbotmagicbullets [on/off]
+			Target Bone — Command: aimbotbone (value)
+				Head
+				Neck
+				Right Elbow
+				Left Elbow
+				Right Hand
+				Left Hand
+				Pelvis
+				Right Calf
+				Left Calf
+				Right Foot
+				Left Foot
+		Triggerbot
+			Triggerbot — Command: triggerbot [on/off]
+			Magic Bullets — Makes sure the triggerbot never misses. — Command: magicbullets [on/off]
+			Players — Command: triggerbotplayers [on/off]
+			Pedestrians — Command: triggerbotpeds [on/off]
+			Vehicles — Command: triggerbotvehicles [on/off]
+			Distance (0 to 30000) — Command: triggerbotrange [0 to 30000]
+			Exclude Friends — Command: triggerbotexcludefriends [on/off]
+			Exclude Crew Members — Command: triggerbotexcludecrewmembers [on/off]
+			Exclude Stand Users — Command: triggerbotexcludestandusers [on/off]
+			Exclude Organisation Members — Command: triggerbotexcludeorgmembers [on/off]
+		Proximity Rockets
+			Proximity Rockets — Proximity rockets only work on other players. — Command: proxyrockets [on/off]
+			Range (0.50 to 5.00) — Command: proxyrange [0.50 to 5.00]
+		Fill All Ammo — Command: fillammo
+		Remove All Ammo — Command: removeammo
+		Infinite Ammo — Command: bottomless [on/off]
+		Skip Reloading — Command: noreload [on/off]
+		No Spread — Command: nospread [on/off]
+		No Recoil — Command: norecoil [on/off]
+		No Spooling — Removes the delay before firing from applicable weapons. — Command: nospooling [on/off]
+		Rapid Fire — Command: rapidfire [on/off]
+		Rapid Fire Vehicle Weapons — Command: vehiclerapidfire [on/off]
+		Damage Multiplier (0.00 to 10000.00) — Applies a multiplier to the damage dealt by your fists and guns. — Command: damagemultiplier [0.00 to 10000.00]
+		Range Multiplier (0.00 to 1.50) — Command: rangemultiplier [0.00 to 1.50]
+		Rocket Speed Multiplier (0.00 to 30.00) — Command: rocketspeedmultiplier [0.00 to 30.00]
+		Super Melee (0 to 10) — Slings NPCs and vehicles away from you after you melee-attack them. Will not work on other players. — Command: supermelee [0 to 10]
+		Bullets In Shotgun Batch (0 to 16) — Command: shotgunbatchsizemultiplier [0 to 16]
+		Instant Lock-On — Command: instantlockon [on/off]
+		Instant Proximity Mine Detonation — Command: instantproxy [on/off]
+		Explosive Hits — Command: explosivehits [on/off]
+		Explosion Type — Lets you select the explosion type of Explosive Hits. — Command: exptype (value)
+			<84 Options>
+		Impact Particles — Command: impactparticles [on/off]
+		Particle — Lets you select the particle to use for Impact Particles.
+			<500 Options>
+		Total Freedom — Allows you to use weapons in interiors and in passive mode. — Command: gunfreedom [on/off]
+		Increased Sticky Limit (On/Off) — This refers to the amount you can put into the world, not into your inventory.
+		Increased Flare Limit (On/Off) — This refers to the amount you can put into the world, not into your inventory.
+		Teleport Gun — Command: tpgun [on/off]
+		Laser Sights — Command: lasersights [on/off]
+	Bodyguards
+		Spawn
+			Spawn — Command: spawnbodyguards
+			Count (1 to 7) — Command: bodyguardcount [1 to 7]
+			Model — Command: bodyguardmodel (value)
+				Playable Characters
+					<6 Options>
+				Ground Animals
+					<33 Options>
+				Water Animals
+					<7 Options>
+				Flying Animals
+					<5 Options>
+				NPCs
+					<1063 Options>
+			Primary Weapon — Bodyguards will use their primary weapon whenever possible. Otherwise, they will try to use their secondary weapon. — Command: bodyguardprimary (value)
+				Melee Weapons
+					<20 Options>
+				Pistols
+					<21 Options>
+				Machine Guns
+					<13 Options>
+				Rifles
+					<14 Options>
+				Shotguns
+					<10 Options>
+				Sniper Rifles
+					<6 Options>
+				Heavy Weapons
+					<11 Options>
+			Secondary Weapon — Bodyguards will use their primary weapon whenever possible. Otherwise, they will try to use their secondary weapon. — Command: bodyguardsecondary (value)
+				Melee Weapons
+					<20 Options>
+				Pistols
+					<21 Options>
+				Machine Guns
+					<13 Options>
+				Rifles
+					<14 Options>
+				Shotguns
+					<10 Options>
+				Sniper Rifles
+					<6 Options>
+				Heavy Weapons
+					<11 Options>
+		Presets — Command: bodyguardpresets
+			Save Preset — Command: bodyguardpresetssave [name]
+		Behaviour
+			Formation — Command: bodyguardformation (value)
+				None — Command: bodyguardformation none
+				Line — Command: bodyguardformation line
+				Circle — Command: bodyguardformation circle
+				Alternative Circle — Command: bodyguardformation altcircle
+			Aggression — Command: bodyguardaggression (value)
+				Friendly — Defends you and others from AI attackers. Won't attack players. — Command: bodyguardaggression friendly
+				Defensive — Defends you from any hostile targets. — Command: bodyguardaggression defensive
+				Aggressive — Defends you from hostile targets, but often engages on sight. — Command: bodyguardaggression aggressive
+			Exclude Players — Prevents your bodyguards from attacking this demographic. — Command: bodyguardsignoreplayers [on/off]
+			Exclude Friends — Prevents your bodyguards from attacking this demographic. — Command: bodyguardsignorefriends [on/off]
+			Exclude Authorities — Prevents your bodyguards from attacking this demographic. — Command: bodyguardsignoreauthorities [on/off]
+			Exclude Crew Members — Prevents your bodyguards from attacking this demographic. — Command: bodyguardsignorecrewmembers [on/off]
+			Exclude Organisation Members — Prevents your bodyguards from attacking this demographic. — Command: bodyguardsignoreorganisationmembers [on/off]
+		Immortality — Command: bodyguardimmortality [on/off]
+		Teleport To Me — Command: tpbodyguards
+		Teleport When Far — Command: bodyguardsteleportwhenfar [on/off]
+		Delete All Bodyguards — Command: delbodyguards
+	Immortality — Makes your character unable to die. — Command: godmode [on/off]
+	Auto Heal — Keeps your character at maximum health and armour. — Command: demigodmode [on/off]
+	Maximum Health (200 to 15000) — Command: maxhealth [200 to 15000]
+	Gracefulness — Makes your character unable to fall over. — Command: grace [on/off]
+	Glued To Seats — Makes your character unable to fall off bikes. — Command: seatbelt [on/off]
+	Set Wanted Level (0 to 5) — Command: wanted [0 to 5] — Can be used by other players with the Neutral Commands permission.
+	Lock Wanted Level — Command: lockwantedlevel [on/off]
+	Fake Wanted Level (0 to 6) — Changes the number of wanted stars shown in the top-right corner. — Command: fakewantedlevel [0 to 6]
+	Infinite Stamina — Command: infstamina [on/off]
+	Lock Parachutes — Command: paralock (value)
+		Disabled — Command: paralock off
+		Full — Command: paralock full
+		Empty — Command: paralock empty
+	Clumsiness — Makes your character fall over more often. — Command: clumsiness [on/off]
+	No Combat Roll Cooldown — Command: norollcooldown [on/off]
+	Respawn At Place Of Death — Command: respawnrecall [on/off]
+	Respawn Delay (0.00 to 5.00) — Changes the respawn time in GTA Online to the given amount of seconds. — Command: respawndelay [0.00 to 5.00]
+	Regeneration Rate — Command: regenrate
+		Health (0.00 to 50.00) — Increases your health by this amount, per second. — Command: healthrate [0.00 to 50.00]
+		Armour (0.00 to 50.00) — Increases your armour by this amount, per second. — Command: armourrate [0.00 to 50.00]
+		Only In Cover — Command: regenonlyincover [on/off]
+	Refill Health — Command: refillhealth
+	Refill Armour — Command: refillarmour
+	Suicide — Command: ewo
+Vehicle — Command: t vehicle
+	Spawner — Command: spawner
+		Search — Command: findvehicle [clue]`;
+
+    const treeEl = document.getElementById('tree');
+    const statusEl = document.getElementById('status');
+    const hoverInfo = document.getElementById('hoverInfo');
+    const expandMainBtn = document.getElementById('expandMainBtn');
+    const collapseMainBtn = document.getElementById('collapseMainBtn');
+    const expandAllBtn = document.getElementById('expandAllBtn');
+    const collapseAllBtn = document.getElementById('collapseAllBtn');
+    const copyFocusLinkBtn = document.getElementById('copyFocusLinkBtn');
+    const searchInput = document.getElementById('searchInput');
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+
+    let focusedElement = null;
+    let currentMainCount = 0;
+
+    function setHoverInfo(text) {
+      hoverInfo.textContent = text || 'Hover an option to see text that appears after —.';
+    }
+
+    function setFocusedElement(el) {
+      if (focusedElement) focusedElement.classList.remove('selected');
+      focusedElement = el;
+      if (focusedElement) focusedElement.classList.add('selected');
+    }
+
+    function copyFocusLink() {
+      if (!focusedElement) return alert('No item selected. Hover and click on an item first.');
+      const text = focusedElement.textContent || '';
+      const match = text.match(/Command: ([a-z0-9_\-\[\]]+)/i);
+      const cmd = match ? match[1] : text.split('—')[0].trim();
+      const link = `t ${cmd}`;
+      navigator.clipboard.writeText(link).then(() => {
+        alert(`Copied to clipboard:\n${link}`);
+      });
+    }
+
+    function parseIndentedText(text) {
+      const lines = text.split('\n');
+      const root = [];
+      const stack = [];
+
+      lines.forEach((line) => {
+        if (!line.trim()) return;
+        const indent = line.search(/\S/);
+        const content = line.trim();
+
+        while (stack.length > 0 && stack[stack.length - 1].indent >= indent) {
+          stack.pop();
+        }
+
+        const node = { content, indent, children: [] };
+        if (stack.length === 0) {
+          root.push(node);
+        } else {
+          stack[stack.length - 1].children.push(node);
+        }
+        stack.push(node);
+      });
+
+      return root;
+    }
+
+    function renderTree(nodes, depth = 0) {
+      const fragment = document.createDocumentFragment();
+      nodes.forEach((node) => {
+        if (node.children.length === 0) {
+          const leaf = document.createElement('div');
+          leaf.className = 'leaf';
+          leaf.textContent = node.content;
+          leaf.addEventListener('mouseenter', () => {
+            const parts = node.content.split('—');
+            setHoverInfo(parts.length > 1 ? parts.slice(1).join('—').trim() : '');
+            setFocusedElement(leaf);
+          });
+          fragment.appendChild(leaf);
+        } else {
+          const details = document.createElement('details');
+          details.className = 'node';
+          if (depth === 0) {
+            details.classList.add('main-category');
+            currentMainCount++;
+          }
+
+          const summary = document.createElement('summary');
+          summary.textContent = node.content;
+          details.appendChild(summary);
+
+          const childContainer = document.createElement('div');
+          renderTree(node.children, depth + 1).forEach((child) => {
+            childContainer.appendChild(child);
+          });
+          details.appendChild(childContainer);
+
+          details.addEventListener('mouseenter', () => {
+            const parts = node.content.split('—');
+            setHoverInfo(parts.length > 1 ? parts.slice(1).join('—').trim() : '');
+            setFocusedElement(details);
+          });
+
+          fragment.appendChild(details);
+        }
+      });
+
+      const result = [];
+      fragment.childNodes.forEach((node) => {
+        if (node instanceof HTMLElement) result.push(node);
+      });
+      return result;
+    }
+
+    function setOpen(selector, open) {
+      treeEl.querySelectorAll(selector).forEach((el) => {
+        el.open = open;
+      });
+    }
+
+		function filterTreeByTerm(rawTerm) {
+			const term = (rawTerm || '').trim().toLowerCase();
+			const allItems = treeEl.querySelectorAll('details.node, .leaf');
+
+			if (!term) {
+				allItems.forEach((el) => {
+					el.style.display = '';
+				});
+				return;
+			}
+
+			function filterElement(element) {
+				if (element.classList.contains('leaf')) {
+					const match = element.textContent.toLowerCase().includes(term);
+					element.style.display = match ? '' : 'none';
+					return match;
+				}
+
+				if (!element.matches('details.node')) return false;
+
+				const summary = element.querySelector(':scope > summary');
+				const selfMatch = (summary?.textContent || '').toLowerCase().includes(term);
+				let childMatch = false;
+
+				Array.from(element.children).forEach((child) => {
+					if (child === summary || !(child instanceof HTMLElement)) return;
+					if (filterElement(child)) {
+						childMatch = true;
+					}
+				});
+
+				const visible = selfMatch || childMatch;
+				element.style.display = visible ? '' : 'none';
+				if (visible) {
+					element.open = childMatch || selfMatch;
+				}
+
+				return visible;
+			}
+
+			Array.from(treeEl.children).forEach((child) => {
+				if (!(child instanceof HTMLElement)) return;
+				filterElement(child);
+			});
+		}
+
+    function loadText(text, sourceName = 'Embedded Data') {
+      const tree = parseIndentedText(text);
+      renderTree(tree);
+      const sevenCheck = currentMainCount === 7
+        ? 'Detected exactly 7 main categories.'
+        : `Detected ${currentMainCount} main categories (expected 7).`;
+      statusEl.textContent = `Loaded ${sourceName}. ${sevenCheck}`;
+    }
+
+    loadText(EMBEDDED_TREE_TEXT, 'Embedded Data');
+    setFocusedElement(null);
+    setHoverInfo('');
+
+		searchInput.addEventListener('input', () => filterTreeByTerm(searchInput.value));
+		clearSearchBtn.addEventListener('click', () => {
+			searchInput.value = '';
+			filterTreeByTerm('');
+			searchInput.focus();
+		});
+
+		document.addEventListener('keydown', (event) => {
+			if (event.ctrlKey && event.key.toLowerCase() === 'f') {
+				event.preventDefault();
+				searchInput.focus();
+				searchInput.select();
+			}
+		});
+
+    expandMainBtn.addEventListener('click', () => setOpen('details.main-category', true));
+    collapseMainBtn.addEventListener('click', () => setOpen('details.main-category', false));
+    expandAllBtn.addEventListener('click', () => setOpen('details.node', true));
+    collapseAllBtn.addEventListener('click', () => setOpen('details.node', false));
+    copyFocusLinkBtn.addEventListener('click', copyFocusLink);
+  </script>
+</body>
+</html>
