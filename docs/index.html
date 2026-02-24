@@ -41,11 +41,6 @@
 		}
     .toolbar button:hover { border-color: var(--accent); }
     .status { color: var(--muted); font-size: 0.9rem; margin: 8px 0 12px; }
-    .hover-info {
-      background: rgba(17, 24, 39, 0.8); border: 1px solid var(--border); border-radius: 12px;
-      padding: 10px; margin: 8px 0 12px; color: var(--muted); min-height: 44px;
-      white-space: pre-wrap; word-break: break-word;
-    }
     .tree {
       background: rgba(17, 24, 39, 0.8); border: 1px solid var(--border); border-radius: 12px;
       padding: 10px; max-height: 76vh; overflow: auto;
@@ -81,7 +76,6 @@
     </div>
 
     <div id="status" class="status">Loading embedded data...</div>
-	<div id="hoverInfo" class="hover-info">Hover an option to see text that appears after &#8212;.</div>
     <div id="tree" class="tree"><div class="empty">Loading...</div></div>
   </div>
 
@@ -519,6 +513,7 @@ Vehicle — Command: t vehicle
 		}
 
     function setHoverInfo(text) {
+			if (!hoverInfo) return;
 			hoverInfo.textContent = text || focusedExtraText || DEFAULT_INFO_TEXT;
     }
 
@@ -554,22 +549,51 @@ Vehicle — Command: t vehicle
 
 			const link = `https://stand.sh/focus#${encodeFocusPath(path)}`;
 			const readablePath = path.split('>').map((part) => part.trim()).join(' > ');
+			const markdown = `[${readablePath}](${link})`;
 
 			try {
+				let copied = false;
+
 				if (window.ClipboardItem && navigator.clipboard?.write) {
-					const html = `<a href="${link}">${readablePath}</a>`;
-					const markdown = `[${readablePath}](${link})`;
-					const item = new ClipboardItem({
-						'text/plain': new Blob([markdown], { type: 'text/plain' }),
-						'text/html': new Blob([html], { type: 'text/html' })
-					});
-					await navigator.clipboard.write([item]);
-				} else {
-					await navigator.clipboard.writeText(`[${readablePath}](${link})`);
+					try {
+						const html = `<a href="${link}">${readablePath}</a>`;
+						const item = new ClipboardItem({
+							'text/plain': new Blob([markdown], { type: 'text/plain' }),
+							'text/html': new Blob([html], { type: 'text/html' })
+						});
+						await navigator.clipboard.write([item]);
+						copied = true;
+					} catch {
+						copied = false;
+					}
 				}
+
+				if (!copied && navigator.clipboard?.writeText) {
+					try {
+						await navigator.clipboard.writeText(markdown);
+						copied = true;
+					} catch {
+						copied = false;
+					}
+				}
+
+				if (!copied) {
+					const textarea = document.createElement('textarea');
+					textarea.value = markdown;
+					textarea.setAttribute('readonly', '');
+					textarea.style.position = 'fixed';
+					textarea.style.opacity = '0';
+					document.body.appendChild(textarea);
+					textarea.focus();
+					textarea.select();
+					const ok = document.execCommand('copy');
+					document.body.removeChild(textarea);
+					if (!ok) throw new Error('execCommand copy failed');
+				}
+
 				statusEl.textContent = `Copied focus link for: ${path}`;
 			} catch {
-				statusEl.textContent = `Clipboard access blocked. Focus link: ${link}`;
+				statusEl.textContent = `Clipboard access blocked. Focus link: ${markdown}`;
 			}
     }
 
