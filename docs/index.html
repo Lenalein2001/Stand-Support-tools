@@ -62,12 +62,11 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>Collapsible Categories UI</h1>
-	<div class="hint">Open this file only. Data is embedded. Hover an item to see text after &#8212;.</div>
-
+    <h1>Stand within your Browser</h1>
     <div class="toolbar">
 			<input id="searchInput" type="text" placeholder="Search tree (Ctrl+F)" />
 			<button id="clearSearchBtn" type="button">Clear Search</button>
+			<button id="openDiagnosticsBtn" type="button">Open Diagnostics Viewer</button>
       <button id="expandMainBtn" type="button">Expand 7 Main Categories</button>
       <button id="collapseMainBtn" type="button">Collapse 7 Main Categories</button>
       <button id="expandAllBtn" type="button">Expand All</button>
@@ -483,6 +482,7 @@ Vehicle — Command: t vehicle
     const expandAllBtn = document.getElementById('expandAllBtn');
     const collapseAllBtn = document.getElementById('collapseAllBtn');
     const copyFocusLinkBtn = document.getElementById('copyFocusLinkBtn');
+	const openDiagnosticsBtn = document.getElementById('openDiagnosticsBtn');
     const searchInput = document.getElementById('searchInput');
     const clearSearchBtn = document.getElementById('clearSearchBtn');
 
@@ -804,6 +804,9 @@ Vehicle — Command: t vehicle
     expandAllBtn.addEventListener('click', () => setOpen('details.node', true));
     collapseAllBtn.addEventListener('click', () => setOpen('details.node', false));
     copyFocusLinkBtn.addEventListener('click', copyFocusLink);
+		openDiagnosticsBtn.addEventListener('click', () => {
+			window.location.href = 'diagnostics/';
+		});
   </script>
 </body>
 </html>
