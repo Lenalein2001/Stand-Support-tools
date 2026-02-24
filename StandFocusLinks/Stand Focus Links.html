@@ -4256,9 +4256,9 @@ Stand — Command: t stand
     }
 
 		function getTitleAndExtra(line) {
-			const parts = line.split(/\s+(?:\u2014|â€”|Ã¢â‚¬â€|--)\s+(.+)/);
-			let title = parts[0]?.trim() ?? '';
-			let extra = parts[1]?.trim() ?? '';
+			const match = line.match(/^(.*?)\s+(?:\u2014|â€"|Ã¢â‚¬â€|--)\s+(.+)$/);
+			let title = match ? match[1].trim() : line.trim();
+			let extra = match ? match[2].trim() : '';
 
 			const parentheticalChunks = (title.match(/\([^)]*\)/g) || []).map((chunk) => chunk.trim());
 			const parentheticalExtra = parentheticalChunks.join(' ');
@@ -4481,3 +4481,4 @@ Stand — Command: t stand
   </script>
 </body>
 </html>
+
