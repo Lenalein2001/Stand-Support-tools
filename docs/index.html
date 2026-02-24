@@ -3,10 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<meta http-equiv="refresh" content="0; url=../StandFocusLinks/Stand%20Focus%20Links.html" />
-	<script>
-		window.location.replace('../StandFocusLinks/Stand%20Focus%20Links.html');
-	</script>
   <title>Category Collapse/Expand UI</title>
   <style>
     :root {
@@ -647,18 +643,44 @@ Vehicle — Command: t vehicle
 			});
 		}
 
-    function loadText(text, sourceName = 'Embedded Data') {
-      const tree = parseIndentedText(text);
-      renderTree(tree);
+		function loadText(text, sourceName = 'Embedded Data') {
+			const tree = parseIndentedText(text);
+			treeEl.innerHTML = '';
+			currentMainCount = 0;
+			const elements = renderTree(tree);
+			elements.forEach((el) => treeEl.appendChild(el));
       const sevenCheck = currentMainCount === 7
         ? 'Detected exactly 7 main categories.'
         : `Detected ${currentMainCount} main categories (expected 7).`;
       statusEl.textContent = `Loaded ${sourceName}. ${sevenCheck}`;
     }
 
-    loadText(EMBEDDED_TREE_TEXT, 'Embedded Data');
-    setFocusedElement(null);
-    setHoverInfo('');
+		function extractEmbeddedTreeTextFromHtml(html) {
+			const match = html.match(/const\s+EMBEDDED_TREE_TEXT\s*=\s*`([\s\S]*?)`;\s*/);
+			return match ? match[1] : '';
+		}
+
+		async function init() {
+			const fallbackText = EMBEDDED_TREE_TEXT;
+			const rawUrl = 'https://raw.githubusercontent.com/Lenalein2001/Stand-Support-tools/senpai/StandFocusLinks/Stand%20Focus%20Links.html';
+
+			try {
+				const response = await fetch(rawUrl, { cache: 'no-store' });
+				if (!response.ok) throw new Error(`HTTP ${response.status}`);
+				const html = await response.text();
+				const extractedText = extractEmbeddedTreeTextFromHtml(html);
+				if (!extractedText) throw new Error('Could not extract EMBEDDED_TREE_TEXT');
+				loadText(extractedText, 'Embedded Data (GitHub)');
+			} catch (error) {
+				console.warn('Falling back to local embedded text:', error);
+				loadText(fallbackText, 'Embedded Data (Fallback)');
+			}
+
+			setFocusedElement(null);
+			setHoverInfo('');
+		}
+
+		init();
 
 		searchInput.addEventListener('input', () => filterTreeByTerm(searchInput.value));
 		clearSearchBtn.addEventListener('click', () => {
