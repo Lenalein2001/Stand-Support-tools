@@ -61,7 +61,6 @@
     details.node > summary:hover { background: rgba(96, 165, 250, 0.08); border-color: rgba(96, 165, 250, 0.35); }
     .leaf { margin: 3px 0; padding: 6px 8px 6px 20px; border-radius: 8px; color: #d1d5db; white-space: pre-wrap; word-break: break-word; }
     .leaf:hover { background: rgba(148, 163, 184, 0.08); }
-    .selected { outline: 1px solid rgba(96, 165, 250, 0.8); background: rgba(96, 165, 250, 0.14); }
     .main-category > summary { background: rgba(96, 165, 250, 0.08); border-color: rgba(96, 165, 250, 0.35); font-weight: 600; }
     .empty { color: var(--muted); padding: 8px; }
   </style>
@@ -4246,9 +4245,8 @@ Stand — Command: t stand
     const collapseAllBtn = document.getElementById('collapseAllBtn');
     const copyFocusLinkBtn = document.getElementById('copyFocusLinkBtn');
 
-    let currentMainCount = 0;
-    let focusedElement = null;
-	let focusedExtraText = '';
+	let currentMainCount = 0;
+	let activeElement = null;
 	const DEFAULT_INFO_TEXT = 'Hover an option to see text that appears after —.';
 
     function encodeFocusPath(path) {
@@ -4273,20 +4271,16 @@ Stand — Command: t stand
     }
 
 		function setHoverInfo(extraText) {
-			hoverInfoEl.textContent = extraText || focusedExtraText || DEFAULT_INFO_TEXT;
+			hoverInfoEl.textContent = extraText || DEFAULT_INFO_TEXT;
     }
 
-    function setFocusedElement(element) {
-      if (focusedElement) focusedElement.classList.remove('selected');
-      focusedElement = element;
-      if (focusedElement) focusedElement.classList.add('selected');
-			focusedExtraText = focusedElement?.dataset?.extra || '';
-			setHoverInfo(focusedExtraText);
+		function setActiveElement(element) {
+			activeElement = element;
     }
 
-    function getPathFromFocusedElement() {
-      if (!focusedElement) return '';
-      return focusedElement.dataset.path || '';
+		function getPathFromActiveElement() {
+			if (!activeElement) return '';
+			return activeElement.dataset.path || '';
     }
 
 		function isOptionsPlaceholder(label) {
@@ -4302,17 +4296,28 @@ Stand — Command: t stand
 		}
 
     async function copyFocusLink() {
-			const path = normalizePathForCopy(getPathFromFocusedElement());
+			const path = normalizePathForCopy(getPathFromActiveElement());
       if (!path) {
         statusEl.textContent = 'You are not focusing any command.';
         return;
       }
       const link = `https://stand.sh/focus#${encodeFocusPath(path)}`;
+      const readablePath = path.split('>').map((part) => part.trim()).join(' > ');
       try {
-        await navigator.clipboard.writeText(link);
+				if (window.ClipboardItem && navigator.clipboard?.write) {
+					const html = `<a href="${link}">${readablePath}</a>`;
+					const markdown = `[${readablePath}](${link})`;
+					const item = new ClipboardItem({
+						'text/plain': new Blob([markdown], { type: 'text/plain' }),
+						'text/html': new Blob([html], { type: 'text/html' })
+					});
+					await navigator.clipboard.write([item]);
+				} else {
+					await navigator.clipboard.writeText(`[${readablePath}](${link})`);
+				}
         statusEl.textContent = `Copied focus link for: ${path}`;
       } catch {
-        statusEl.textContent = `Clipboard access blocked. Focus link: ${link}`;
+				statusEl.textContent = `Clipboard access blocked. Focus link: [${readablePath}](${link})`;
       }
     }
 
@@ -4350,10 +4355,10 @@ Stand — Command: t stand
         leaf.dataset.path = currentPathParts.join('>');
 				leaf.dataset.extra = node.extra || '';
         leaf.addEventListener('mouseenter', () => setHoverInfo(node.extra));
-				leaf.addEventListener('mouseleave', () => setHoverInfo(focusedExtraText));
+				leaf.addEventListener('mouseleave', () => setHoverInfo(''));
         leaf.addEventListener('click', (event) => {
           event.stopPropagation();
-          setFocusedElement(leaf);
+					setActiveElement(leaf);
         });
         return leaf;
       }
@@ -4367,10 +4372,10 @@ Stand — Command: t stand
       summary.dataset.path = currentPathParts.join('>');
 			summary.dataset.extra = node.extra || '';
       summary.addEventListener('mouseenter', () => setHoverInfo(node.extra));
-			summary.addEventListener('mouseleave', () => setHoverInfo(focusedExtraText));
+			summary.addEventListener('mouseleave', () => setHoverInfo(''));
       summary.addEventListener('click', (event) => {
         event.stopPropagation();
-        setFocusedElement(summary);
+				setActiveElement(summary);
       });
       details.appendChild(summary);
 
@@ -4455,7 +4460,7 @@ Stand — Command: t stand
     }
 
     loadText(EMBEDDED_TREE_TEXT, 'Embedded Data');
-    setFocusedElement(null);
+	setActiveElement(null);
     setHoverInfo('');
 
 		searchInput.addEventListener('input', () => filterTreeByTerm(searchInput.value));
@@ -4470,6 +4475,19 @@ Stand — Command: t stand
 				event.preventDefault();
 				searchInput.focus();
 				searchInput.select();
+			}
+
+			if (event.ctrlKey && event.key.toLowerCase() === 'c') {
+				const target = event.target;
+				if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target?.isContentEditable) return;
+
+				const selectedText = window.getSelection()?.toString() || '';
+				if (selectedText) return;
+
+				if (getPathFromActiveElement()) {
+					event.preventDefault();
+					copyFocusLink();
+				}
 			}
 		});
 
