@@ -82,7 +82,6 @@
     </div>
 
     <div id="status" class="status">Loading embedded data...</div>
-	<div id="focusLinkWrap" class="status" style="display:none;">Focus link: <a id="focusLinkAnchor" href="#" target="_blank" rel="noopener noreferrer"></a></div>
 	<div id="hoverInfo" class="hover-info">Hover an option to see text that appears after &#8212;.</div>
     <div id="tree" class="tree"><div class="empty">Loading...</div></div>
   </div>
@@ -493,8 +492,6 @@ Vehicle — Command: t vehicle
     const copyFocusLinkBtn = document.getElementById('copyFocusLinkBtn');
     const searchInput = document.getElementById('searchInput');
     const clearSearchBtn = document.getElementById('clearSearchBtn');
-		const focusLinkWrap = document.getElementById('focusLinkWrap');
-		const focusLinkAnchor = document.getElementById('focusLinkAnchor');
 
     let focusedElement = null;
     let currentMainCount = 0;
@@ -559,16 +556,12 @@ Vehicle — Command: t vehicle
 			}
 
 			const link = `https://stand.sh/focus#${encodeFocusPath(path)}`;
-			focusLinkAnchor.href = link;
-			focusLinkAnchor.textContent = path.split('>').map((part) => part.trim()).join(' > ');
-			focusLinkAnchor.title = link;
-			focusLinkWrap.style.display = '';
 
 			try {
 				await navigator.clipboard.writeText(link);
 				statusEl.textContent = `Copied focus link for: ${path}`;
 			} catch {
-				statusEl.textContent = `Clipboard access blocked. Focus link available below.`;
+				statusEl.textContent = `Clipboard access blocked. Focus link: ${link}`;
 			}
     }
 
