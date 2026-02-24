@@ -560,7 +560,8 @@ Vehicle — Command: t vehicle
 
 			const link = `https://stand.sh/focus#${encodeFocusPath(path)}`;
 			focusLinkAnchor.href = link;
-			focusLinkAnchor.textContent = link;
+			focusLinkAnchor.textContent = path.split('>').map((part) => part.trim()).join(' > ');
+			focusLinkAnchor.title = link;
 			focusLinkWrap.style.display = '';
 
 			try {
