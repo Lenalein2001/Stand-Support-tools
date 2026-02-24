@@ -556,9 +556,19 @@ Vehicle — Command: t vehicle
 			}
 
 			const link = `https://stand.sh/focus#${encodeFocusPath(path)}`;
+			const readablePath = path.split('>').map((part) => part.trim()).join(' > ');
 
 			try {
-				await navigator.clipboard.writeText(link);
+				if (window.ClipboardItem && navigator.clipboard?.write) {
+					const html = `<a href="${link}">${readablePath}</a>`;
+					const item = new ClipboardItem({
+						'text/plain': new Blob([link], { type: 'text/plain' }),
+						'text/html': new Blob([html], { type: 'text/html' })
+					});
+					await navigator.clipboard.write([item]);
+				} else {
+					await navigator.clipboard.writeText(link);
+				}
 				statusEl.textContent = `Copied focus link for: ${path}`;
 			} catch {
 				statusEl.textContent = `Clipboard access blocked. Focus link: ${link}`;
