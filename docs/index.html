@@ -82,6 +82,7 @@
     </div>
 
     <div id="status" class="status">Loading embedded data...</div>
+	<div id="focusLinkWrap" class="status" style="display:none;">Focus link: <a id="focusLinkAnchor" href="#" target="_blank" rel="noopener noreferrer"></a></div>
 	<div id="hoverInfo" class="hover-info">Hover an option to see text that appears after &#8212;.</div>
     <div id="tree" class="tree"><div class="empty">Loading...</div></div>
   </div>
@@ -492,29 +493,82 @@ Vehicle — Command: t vehicle
     const copyFocusLinkBtn = document.getElementById('copyFocusLinkBtn');
     const searchInput = document.getElementById('searchInput');
     const clearSearchBtn = document.getElementById('clearSearchBtn');
+		const focusLinkWrap = document.getElementById('focusLinkWrap');
+		const focusLinkAnchor = document.getElementById('focusLinkAnchor');
 
     let focusedElement = null;
     let currentMainCount = 0;
+		let focusedExtraText = '';
+		const DEFAULT_INFO_TEXT = 'Hover an option to see text that appears after —.';
+
+		function encodeFocusPath(path) {
+			return path.split('>').map((part) => encodeURIComponent(part.trim())).join('%3E');
+		}
+
+		function getTitleAndExtra(line) {
+			const match = line.match(/^(.*?)\s+(?:\u2014|â€"|Ã¢â‚¬â€|--)\s+(.+)$/);
+			let title = match ? match[1].trim() : line.trim();
+			let extra = match ? match[2].trim() : '';
+
+			const parentheticalChunks = (title.match(/\([^)]*\)/g) || []).map((chunk) => chunk.trim());
+			const parentheticalExtra = parentheticalChunks.join(' ');
+
+			title = title.replace(/\s*\([^)]*\)/g, '').replace(/\s{2,}/g, ' ').trim();
+
+			if (parentheticalExtra) {
+				extra = extra ? `${parentheticalExtra} — ${extra}` : parentheticalExtra;
+			}
+
+			return { title, extra };
+		}
 
     function setHoverInfo(text) {
-      hoverInfo.textContent = text || 'Hover an option to see text that appears after —.';
+			hoverInfo.textContent = text || focusedExtraText || DEFAULT_INFO_TEXT;
     }
 
     function setFocusedElement(el) {
       if (focusedElement) focusedElement.classList.remove('selected');
       focusedElement = el;
       if (focusedElement) focusedElement.classList.add('selected');
+			focusedExtraText = focusedElement?.dataset?.extra || '';
+			setHoverInfo(focusedExtraText);
+		}
+
+		function getPathFromFocusedElement() {
+			if (!focusedElement) return '';
+			return focusedElement.dataset.path || '';
+		}
+
+		function isOptionsPlaceholder(label) {
+			return /^<\s*[^>]*\boptions?\b[^>]*>?$/i.test(label.trim());
+		}
+
+		function normalizePathForCopy(path) {
+			const segments = path.split('>').map((part) => part.trim()).filter(Boolean);
+			if (segments.length > 1 && isOptionsPlaceholder(segments[segments.length - 1])) {
+				segments.pop();
+			}
+			return segments.join('>');
     }
 
-    function copyFocusLink() {
-      if (!focusedElement) return alert('No item selected. Hover and click on an item first.');
-      const text = focusedElement.textContent || '';
-      const match = text.match(/Command: ([a-z0-9_\-\[\]]+)/i);
-      const cmd = match ? match[1] : text.split('—')[0].trim();
-      const link = `t ${cmd}`;
-      navigator.clipboard.writeText(link).then(() => {
-        alert(`Copied to clipboard:\n${link}`);
-      });
+		async function copyFocusLink() {
+			const path = normalizePathForCopy(getPathFromFocusedElement());
+			if (!path) {
+				statusEl.textContent = 'You are not focusing any command.';
+				return;
+			}
+
+			const link = `https://stand.sh/focus#${encodeFocusPath(path)}`;
+			focusLinkAnchor.href = link;
+			focusLinkAnchor.textContent = link;
+			focusLinkWrap.style.display = '';
+
+			try {
+				await navigator.clipboard.writeText(link);
+				statusEl.textContent = `Copied focus link for: ${path}`;
+			} catch {
+				statusEl.textContent = `Clipboard access blocked. Focus link available below.`;
+			}
     }
 
     function parseIndentedText(text) {
@@ -525,13 +579,15 @@ Vehicle — Command: t vehicle
       lines.forEach((line) => {
         if (!line.trim()) return;
         const indent = line.search(/\S/);
-        const content = line.trim();
+				const content = line.trim();
+				const { title, extra } = getTitleAndExtra(content);
+				if (!title) return;
 
         while (stack.length > 0 && stack[stack.length - 1].indent >= indent) {
           stack.pop();
         }
 
-        const node = { content, indent, children: [] };
+				const node = { title, extra, indent, children: [] };
         if (stack.length === 0) {
           root.push(node);
         } else {
@@ -543,52 +599,61 @@ Vehicle — Command: t vehicle
       return root;
     }
 
-    function renderTree(nodes, depth = 0) {
-      const fragment = document.createDocumentFragment();
-      nodes.forEach((node) => {
-        if (node.children.length === 0) {
-          const leaf = document.createElement('div');
-          leaf.className = 'leaf';
-          leaf.textContent = node.content;
-          leaf.addEventListener('mouseenter', () => {
-            const parts = node.content.split('—');
-            setHoverInfo(parts.length > 1 ? parts.slice(1).join('—').trim() : '');
-            setFocusedElement(leaf);
-          });
-          fragment.appendChild(leaf);
-        } else {
-          const details = document.createElement('details');
-          details.className = 'node';
-          if (depth === 0) {
-            details.classList.add('main-category');
-            currentMainCount++;
-          }
+		function createNodeElement(node, depth = 0, parentPathParts = []) {
+			const currentPathParts = [...parentPathParts, node.title];
 
-          const summary = document.createElement('summary');
-          summary.textContent = node.content;
-          details.appendChild(summary);
+			if (!node.children.length) {
+				const leaf = document.createElement('div');
+				leaf.className = 'leaf';
+				leaf.textContent = node.title;
+				leaf.dataset.path = currentPathParts.join('>');
+				leaf.dataset.extra = node.extra || '';
+				leaf.addEventListener('mouseenter', () => setHoverInfo(node.extra));
+				leaf.addEventListener('mouseleave', () => setHoverInfo(focusedExtraText));
+				leaf.addEventListener('click', (event) => {
+					event.stopPropagation();
+					setFocusedElement(leaf);
+				});
+				return leaf;
+			}
 
-          const childContainer = document.createElement('div');
-          renderTree(node.children, depth + 1).forEach((child) => {
-            childContainer.appendChild(child);
-          });
-          details.appendChild(childContainer);
+			const details = document.createElement('details');
+			details.className = 'node';
+			if (depth === 0) {
+				details.classList.add('main-category');
+				currentMainCount++;
+			}
 
-          details.addEventListener('mouseenter', () => {
-            const parts = node.content.split('—');
-            setHoverInfo(parts.length > 1 ? parts.slice(1).join('—').trim() : '');
-            setFocusedElement(details);
-          });
+			const summary = document.createElement('summary');
+			summary.textContent = node.title;
+			summary.dataset.path = currentPathParts.join('>');
+			summary.dataset.extra = node.extra || '';
+			summary.addEventListener('mouseenter', () => setHoverInfo(node.extra));
+			summary.addEventListener('mouseleave', () => setHoverInfo(focusedExtraText));
+			summary.addEventListener('click', (event) => {
+				event.stopPropagation();
+				setFocusedElement(summary);
+			});
+			details.appendChild(summary);
 
-          fragment.appendChild(details);
-        }
-      });
+			for (const child of node.children) {
+				details.appendChild(createNodeElement(child, depth + 1, currentPathParts));
+			}
 
-      const result = [];
-      fragment.childNodes.forEach((node) => {
-        if (node instanceof HTMLElement) result.push(node);
-      });
-      return result;
+			return details;
+		}
+
+		function renderTree(nodes) {
+			treeEl.innerHTML = '';
+			if (!nodes.length) {
+				treeEl.innerHTML = '<div class="empty">No categories found in embedded data.</div>';
+				currentMainCount = 0;
+				return;
+			}
+
+			for (const node of nodes) {
+				treeEl.appendChild(createNodeElement(node, 0));
+			}
     }
 
     function setOpen(selector, open) {
@@ -645,10 +710,8 @@ Vehicle — Command: t vehicle
 
 		function loadText(text, sourceName = 'Embedded Data') {
 			const tree = parseIndentedText(text);
-			treeEl.innerHTML = '';
 			currentMainCount = 0;
-			const elements = renderTree(tree);
-			elements.forEach((el) => treeEl.appendChild(el));
+			renderTree(tree);
       const sevenCheck = currentMainCount === 7
         ? 'Detected exactly 7 main categories.'
         : `Detected ${currentMainCount} main categories (expected 7).`;
